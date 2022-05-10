@@ -21,6 +21,7 @@ import cz.cvut.kbss.termit.util.Configuration;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.aspectj.EnableSpringConfigured;
@@ -42,6 +43,7 @@ import java.net.URI;
         TestServiceConfig.class}, initializers = {ConfigDataApplicationContextInitializer.class})
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DataJpaTest
 public class BaseServiceTestRunner extends TransactionalTestRunner {
 
     private static final String EXISTENCE_CHECK_QUERY = "ASK { ?x a ?type . }";
