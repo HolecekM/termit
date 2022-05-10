@@ -25,9 +25,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ChangeTrackingService {
-    private static final Logger logger = LoggerFactory.getLogger(ChangeTrackingService.class);
-
-    private static final Logger LOG = LoggerFactory.getLogger(ChangeTracker.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ChangeTrackingService.class);
 
     private final ChangeCalculator changeCalculator;
 
@@ -41,7 +39,7 @@ public class ChangeTrackingService {
     ) {
         this.changeCalculator = changeCalculator;
         this.changeRecordDao = changeRecordDao;
-        logger.debug(String.valueOf(jpaEmf));
+        LOG.debug(String.valueOf(jpaEmf));
     }
 
     /**
