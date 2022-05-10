@@ -4,7 +4,7 @@ import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeTrackingHelperDao;
-import cz.cvut.kbss.termit.service.changetracking.ChangeTracker;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
@@ -22,7 +22,7 @@ public class ChangeTrackingAspect {
     private static final Logger LOG = LoggerFactory.getLogger(ChangeTrackingAspect.class);
 
     @Autowired
-    private ChangeTracker changeTracker;
+    private ChangeTrackingService changeTracker;
 
     @Autowired
     private ChangeTrackingHelperDao helperDao;

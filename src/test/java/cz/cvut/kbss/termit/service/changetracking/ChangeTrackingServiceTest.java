@@ -28,7 +28,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
-class ChangeTrackerTest extends BaseServiceTestRunner {
+class ChangeTrackingServiceTest extends BaseServiceTestRunner {
 
     @Autowired
     private EntityManager em;
@@ -37,7 +37,7 @@ class ChangeTrackerTest extends BaseServiceTestRunner {
     private DescriptorFactory descriptorFactory;
 
     @Autowired
-    private ChangeTracker sut;
+    private ChangeTrackingService sut;
 
     private User author;
 

@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  * Tracks changes to assets.
  */
 @Service
-public class ChangeTracker {
+public class ChangeTrackingService {
 
     private static final Logger LOG = LoggerFactory.getLogger(ChangeTracker.class);
 
@@ -32,7 +32,7 @@ public class ChangeTracker {
     private final ChangeRecordDao changeRecordDao;
 
     @Autowired
-    public ChangeTracker(ChangeCalculator changeCalculator, ChangeRecordDao changeRecordDao) {
+    public ChangeTrackingService(ChangeCalculator changeCalculator, ChangeRecordDao changeRecordDao) {
         this.changeCalculator = changeCalculator;
         this.changeRecordDao = changeRecordDao;
     }

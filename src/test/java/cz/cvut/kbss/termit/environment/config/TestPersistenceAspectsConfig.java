@@ -2,12 +2,11 @@ package cz.cvut.kbss.termit.environment.config;
 
 import cz.cvut.kbss.termit.aspect.ChangeTrackingAspect;
 import cz.cvut.kbss.termit.aspect.VocabularyContentModificationAspect;
-import cz.cvut.kbss.termit.service.changetracking.ChangeTracker;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import org.aspectj.lang.Aspects;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Primary;
 
 import static org.mockito.Mockito.mock;
@@ -22,8 +21,8 @@ public class TestPersistenceAspectsConfig {
 
     @Bean
     @Primary
-    public ChangeTracker changeTracker() {
-        return mock(ChangeTracker.class);
+    public ChangeTrackingService changeTracker() {
+        return mock(ChangeTrackingService.class);
     }
 
     @Bean
