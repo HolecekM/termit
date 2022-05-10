@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Objects;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ChangeTrackingService {
+    private static final Logger logger = LoggerFactory.getLogger(ChangeTrackingService.class);
 
     private static final Logger LOG = LoggerFactory.getLogger(ChangeTracker.class);
 
@@ -32,9 +34,14 @@ public class ChangeTrackingService {
     private final ChangeRecordDao changeRecordDao;
 
     @Autowired
-    public ChangeTrackingService(ChangeCalculator changeCalculator, ChangeRecordDao changeRecordDao) {
+    public ChangeTrackingService(
+            ChangeCalculator changeCalculator,
+            ChangeRecordDao changeRecordDao,
+            EntityManagerFactory jpaEmf
+    ) {
         this.changeCalculator = changeCalculator;
         this.changeRecordDao = changeRecordDao;
+        logger.debug(String.valueOf(jpaEmf));
     }
 
     /**
