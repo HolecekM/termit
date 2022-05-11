@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.changetracking;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.vocabulary.DC;
@@ -7,16 +8,13 @@ import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.dto.TermStatus;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
 import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
-import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
-import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.service.repository.ResourceRepositoryService;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
 import cz.cvut.kbss.termit.service.repository.VocabularyRepositoryService;
@@ -24,7 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 
@@ -32,7 +29,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ChangeTrackingTest extends BaseServiceTestRunner {
+public class ChangeTrackingTest extends AbstractChangeTrackingTest {
 
     @Autowired
     private EntityManager em;
@@ -41,13 +38,13 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
     private DescriptorFactory descriptorFactory;
 
     @Autowired
-    private ChangeRecordDao changeRecordDao;
-
-    @Autowired
     private VocabularyRepositoryService vocabularyService;
 
     @Autowired
     private TermRepositoryService termService;
+
+    @Autowired
+    private ChangeTrackingService changeTrackingService;
 
     @Autowired
     private ResourceRepositoryService resourceService;
@@ -55,6 +52,13 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
     private User author;
 
     private Vocabulary vocabulary;
+
+    List<ChangeVector<?>> getAll(Asset<?> asset) {
+        return changeTrackingService.getAllForObject(
+                cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnik,
+                asset.getUri().toString()
+        );
+    }
 
     @BeforeEach
     void setUp() {
@@ -65,41 +69,16 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
     }
 
     @Test
-    void persistingVocabularyCreatesCreationChangeRecord() {
-        enableRdfsInference(em);
-        transactional(() -> vocabularyService.persist(vocabulary));
-
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(vocabulary);
-        assertEquals(1, result.size());
-        assertEquals(vocabulary.getUri(), result.get(0).getChangedEntity());
-        assertThat(result.get(0), instanceOf(PersistChangeRecord.class));
-    }
-
-    @Test
-    void persistingTermCreatesCreationChangeRecord() {
-        enableRdfsInference(em);
-        transactional(() -> em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary)));
-        final Term term = Generator.generateTermWithId();
-        transactional(() -> termService.addRootTermToVocabulary(term, vocabulary));
-
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(term);
-        assertEquals(1, result.size());
-        assertEquals(term.getUri(), result.get(0).getChangedEntity());
-        assertThat(result.get(0), instanceOf(PersistChangeRecord.class));
-    }
-
-    @Test
     void updatingVocabularyLiteralAttributeCreatesUpdateChangeRecord() {
         enableRdfsInference(em);
         transactional(() -> em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary)));
         vocabulary.setLabel("Updated vocabulary label");
         transactional(() -> vocabularyService.update(vocabulary));
 
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(vocabulary);
+        final List<ChangeVector<?>> result = getAll(vocabulary);
         assertEquals(1, result.size());
-        assertEquals(vocabulary.getUri(), result.get(0).getChangedEntity());
-        assertThat(result.get(0), instanceOf(UpdateChangeRecord.class));
-        assertEquals(DC.Terms.TITLE, ((UpdateChangeRecord) result.get(0)).getChangedAttribute().toString());
+        assertEquals(vocabulary.getUri(), result.get(0).getObjectId());
+        assertEquals(DC.Terms.TITLE, result.get(0).getAttributeName());
     }
 
     @Test
@@ -114,12 +93,12 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
         vocabulary.setImportedVocabularies(Collections.singleton(imported.getUri()));
         transactional(() -> vocabularyService.update(vocabulary));
 
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(vocabulary);
+        final List<ChangeVector<?>> result = getAll(vocabulary);
         assertEquals(2, result.size());
         result.forEach(chr -> {
-            assertEquals(vocabulary.getUri(), chr.getChangedEntity());
+            assertEquals(vocabulary.getUri(), chr.getObjectId());
             assertThat(result.get(0), instanceOf(UpdateChangeRecord.class));
-            assertThat(((UpdateChangeRecord) chr).getChangedAttribute().toString(), anyOf(equalTo(DC.Terms.TITLE),
+            assertThat(chr.getAttributeName(), anyOf(equalTo(DC.Terms.TITLE),
                                                                                           equalTo(cz.cvut.kbss.termit.util.Vocabulary.s_p_importuje_slovnik)));
         });
     }
@@ -139,11 +118,10 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
         term.setVocabulary(vocabulary.getUri());
         transactional(() -> termService.update(term));
 
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(term);
+        final List<ChangeVector<?>> result = getAll(term);
         assertEquals(1, result.size());
-        assertEquals(term.getUri(), result.get(0).getChangedEntity());
-        assertThat(result.get(0), instanceOf(UpdateChangeRecord.class));
-        assertEquals(SKOS.DEFINITION, ((UpdateChangeRecord) result.get(0)).getChangedAttribute().toString());
+        assertEquals(term.getUri(), result.get(0).getObjectId());
+        assertEquals(SKOS.DEFINITION, result.get(0).getAttributeName());
     }
 
     @Test
@@ -165,11 +143,10 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
         term.setVocabulary(vocabulary.getUri());
         transactional(() -> termService.update(term));
 
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(term);
+        final List<ChangeVector<?>> result = getAll(term);
         assertEquals(1, result.size());
-        assertEquals(term.getUri(), result.get(0).getChangedEntity());
-        assertThat(result.get(0), instanceOf(UpdateChangeRecord.class));
-        assertEquals(SKOS.BROADER, ((UpdateChangeRecord) result.get(0)).getChangedAttribute().toString());
+        assertEquals(term.getUri(), result.get(0).getObjectId());
+        assertEquals(SKOS.BROADER, result.get(0).getAttributeName());
     }
 
     @Test
@@ -190,11 +167,11 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
         term.setVocabulary(vocabulary.getUri());
         transactional(() -> termService.update(term));
 
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(term);
+        final List<ChangeVector<?>> result = getAll(term);
         assertEquals(1, result.size());
         assertEquals(Collections.singleton(originalDefinition),
-                     ((UpdateChangeRecord) result.get(0)).getOriginalValue());
-        assertEquals(Collections.singleton(newDefinition), ((UpdateChangeRecord) result.get(0)).getNewValue());
+                     result.get(0).getPreviousValue());
+        //assertEquals(Collections.singleton(newDefinition), result.get(0).getNewValue());
     }
 
     @Test
@@ -216,10 +193,10 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
         term.setVocabulary(vocabulary.getUri());
         transactional(() -> termService.update(term));
 
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(term);
+        final List<ChangeVector<?>> result = getAll(term);
         assertFalse(result.isEmpty());
-        assertNull(((UpdateChangeRecord) result.get(0)).getOriginalValue());
-        assertEquals(Collections.singleton(parent.getUri()), ((UpdateChangeRecord) result.get(0)).getNewValue());
+        assertNull(result.get(0).getPreviousValue());
+        //assertEquals(Collections.singleton(parent.getUri()), result.get(0).getNewValue());
     }
 
     @Test
@@ -228,7 +205,7 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
         final File file = Generator.generateFileWithId("test.html");
         transactional(() -> resourceService.persist(file));
 
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(file);
+        final List<ChangeVector<?>> result = getAll(file);
         assertEquals(0, result.size());
     }
 
@@ -245,10 +222,8 @@ public class ChangeTrackingTest extends BaseServiceTestRunner {
         });
 
         termService.setStatus(term, TermStatus.CONFIRMED);
-        final List<AbstractChangeRecord> result = changeRecordDao.findAll(term);
+        final List<ChangeVector<?>> result = getAll(term);
         assertEquals(1, result.size());
-        assertThat(result.get(0), instanceOf(UpdateChangeRecord.class));
-        assertEquals(URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_draft),
-                     ((UpdateChangeRecord) result.get(0)).getChangedAttribute());
+        assertEquals(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_draft, result.get(0).getAttributeName());
     }
 }

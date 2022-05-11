@@ -13,11 +13,9 @@ import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.util.HasIdentifier;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
-import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
@@ -29,14 +27,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Transactional("jpaTxManager")
-class ChangeTrackingServiceTest extends BaseServiceTestRunner {
+class ChangeTrackingServiceTest extends AbstractChangeTrackingTest {
 
     @Autowired
     private EntityManager em;
-
-    @Autowired
-    private javax.persistence.EntityManager jpaEm;
 
     @Autowired
     private DescriptorFactory descriptorFactory;
