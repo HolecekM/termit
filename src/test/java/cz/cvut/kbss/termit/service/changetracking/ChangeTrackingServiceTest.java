@@ -1,7 +1,9 @@
 package cz.cvut.kbss.termit.service.changetracking;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
+import cz.cvut.kbss.jopa.model.annotations.OWLClass;
 import cz.cvut.kbss.jopa.vocabulary.DC;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.environment.Environment;
@@ -9,24 +11,25 @@ import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
 import cz.cvut.kbss.termit.model.util.HasIdentifier;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
 
 import static cz.cvut.kbss.termit.service.changetracking.MetamodelBasedChangeCalculatorTest.cloneOf;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Transactional("jpaTxManager")
 class ChangeTrackingServiceTest extends BaseServiceTestRunner {
 
     @Autowired
@@ -56,30 +59,8 @@ class ChangeTrackingServiceTest extends BaseServiceTestRunner {
         });
     }
 
-    @Test
-    void recordAddEventStoresCreationChangeRecordInRepository() {
-        enableRdfsInference(em);
-        final Term newTerm = Generator.generateTermWithId();
-        newTerm.setGlossary(vocabulary.getGlossary().getUri());
-        transactional(() -> {
-            em.persist(newTerm, descriptorFactory.termDescriptor(vocabulary));
-            sut.recordAddEvent(newTerm);
-        });
-
-        final List<AbstractChangeRecord> result = findRecords(newTerm);
-        assertEquals(1, result.size());
-        final AbstractChangeRecord record = result.get(0);
-        assertThat(record, instanceOf(PersistChangeRecord.class));
-        assertEquals(newTerm.getUri(), record.getChangedEntity());
-        assertEquals(author, record.getAuthor());
-        assertNotNull(record.getTimestamp());
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<AbstractChangeRecord> findRecords(HasIdentifier entity) {
-        /*return jpaEm.createQuery("select v from JsonChangeVector v where v.objectId = :id")
-                    .setParameter("id", entity.getUri().toString()).getResultList();*/
-        return jpaEm.createQuery("select v from JsonChangeVector v").getResultList();
+    private List<ChangeVector<?>> findRecords(HasIdentifier entity) {
+        return sut.getAllForObject(entity.getClass().getAnnotation(OWLClass.class).iri(), entity.getUri().toString());
     }
 
     @Test
@@ -106,12 +87,12 @@ class ChangeTrackingServiceTest extends BaseServiceTestRunner {
         update.setDefinition(MultilingualString.create("Updated definition of this term.", Environment.LANGUAGE));
         transactional(() -> sut.recordUpdateEvent(update, original));
 
-        final List<AbstractChangeRecord> result = findRecords(original);
+
+        final List<ChangeVector<?>> result = findRecords(original);
         assertEquals(1, result.size());
-        final AbstractChangeRecord record = result.get(0);
-        assertEquals(original.getUri(), record.getChangedEntity());
-        assertThat(record, instanceOf(UpdateChangeRecord.class));
-        assertEquals(SKOS.DEFINITION, ((UpdateChangeRecord) record).getChangedAttribute().toString());
+        final ChangeVector<?> vector = result.get(0);
+        assertEquals(original.getUri().toString(), vector.getObjectId());
+        assertEquals(SKOS.DEFINITION, vector.getAttributeName());
     }
 
     @Test
@@ -126,13 +107,11 @@ class ChangeTrackingServiceTest extends BaseServiceTestRunner {
         update.setSources(Collections.singleton(Generator.generateUri().toString()));
         transactional(() -> sut.recordUpdateEvent(update, original));
 
-        final List<AbstractChangeRecord> result = findRecords(original);
+        final List<ChangeVector<?>> result = findRecords(original);
         assertEquals(2, result.size());
-        result.forEach(record -> {
-            assertEquals(original.getUri(), record.getChangedEntity());
-            assertThat(record, instanceOf(UpdateChangeRecord.class));
-            assertThat(((UpdateChangeRecord) record).getChangedAttribute().toString(), anyOf(equalTo(SKOS.DEFINITION),
-                    equalTo(DC.Terms.SOURCE)));
-        });
+        result.forEach(record -> assertThat(
+                record.getAttributeName(),
+                anyOf(equalTo(SKOS.DEFINITION), equalTo(DC.Terms.SOURCE))
+        ));
     }
 }

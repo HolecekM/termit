@@ -1,7 +1,7 @@
 package cz.cvut.kbss.termit.service.changetracking;
 
 import cz.cvut.kbss.changetracking.ChangeTracker;
-import cz.cvut.kbss.changetracking.model.JsonChangeVector;
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.changetracking.strategy.entity.JopaEntityStrategy;
 import cz.cvut.kbss.changetracking.strategy.storage.JpaStorageStrategy;
 import cz.cvut.kbss.termit.model.Asset;
@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -27,29 +28,20 @@ import java.util.Objects;
  */
 @Service
 @EntityScan("cz.cvut.kbss.changetracking.model")
-@Transactional
+@Transactional("jpaTxManager")
 public class ChangeTrackingService {
     private static final Logger LOG = LoggerFactory.getLogger(ChangeTrackingService.class);
 
-    private final ChangeCalculator changeCalculator;
-
     private final ChangeRecordDao changeRecordDao;
-    private final EntityManager jpaEm;
-    private final EntityManagerFactory jpaEmf;
     private final ChangeTracker changeTracker;
 
     @Autowired
     public ChangeTrackingService(
-            ChangeCalculator changeCalculator,
             ChangeRecordDao changeRecordDao,
             javax.persistence.EntityManager jpaEm,
-            javax.persistence.EntityManagerFactory jpaEmf,
             cz.cvut.kbss.jopa.model.EntityManagerFactory jopaEmf
     ) {
-        this.changeCalculator = changeCalculator;
         this.changeRecordDao = changeRecordDao;
-        this.jpaEm = jpaEm;
-        this.jpaEmf = jpaEmf;
         this.changeTracker = new ChangeTracker(new JopaEntityStrategy(jopaEmf.getMetamodel()), new JpaStorageStrategy(jpaEm));
     }
 
@@ -58,7 +50,6 @@ public class ChangeTrackingService {
      *
      * @param added The added asset
      */
-    @Transactional
     public void recordAddEvent(Asset<?> added) {
         Objects.requireNonNull(added);
         final AbstractChangeRecord changeRecord = new PersistChangeRecord(added);
@@ -75,18 +66,16 @@ public class ChangeTrackingService {
      * @param update   The updated version of the asset
      * @param original The original version of the asset
      */
-    @Transactional
     public void recordUpdateEvent(Asset<?> update, Asset<?> original) {
-        EntityManagerFactory emf = this.jpaEmf;
-        EntityManager em = this.jpaEm;
-        /*System.out.println(em.getTransaction());
-        System.out.println(em.isJoinedToTransaction());*/
-        em.persist(new JsonChangeVector());
         final User user = SecurityUtils.currentUser().toUser();
-        // set breakpoint on the line below -> step in -> step into StorageStrategy#save -> em#persist does nothing
-        //  except look up new ID, em#getTransaction ISEs, #isJoinedToTransaction() is false BUT
-        //  TransactionSynchronizationManager.isActualTransactionActive() is true
         changeTracker.compareAndSave(original, update, user.getUri().toString());
         // TODO: log
+    }
+
+    /**
+     * @see ChangeTracker#getAllForObject(String, String)
+     */
+    public List<ChangeVector<?>> getAllForObject(String objectType, String objectId) {
+        return changeTracker.getAllForObject(objectType, objectId);
     }
 }
