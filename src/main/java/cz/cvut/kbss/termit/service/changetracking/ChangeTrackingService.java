@@ -4,6 +4,7 @@ import cz.cvut.kbss.changetracking.ChangeTracker;
 import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.changetracking.strategy.entity.JopaEntityStrategy;
 import cz.cvut.kbss.changetracking.strategy.storage.JpaStorageStrategy;
+import cz.cvut.kbss.jopa.adapters.IndirectMultilingualString;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
@@ -18,8 +19,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 import java.util.List;
 import java.util.Objects;
 
@@ -42,7 +41,10 @@ public class ChangeTrackingService {
             cz.cvut.kbss.jopa.model.EntityManagerFactory jopaEmf
     ) {
         this.changeRecordDao = changeRecordDao;
-        this.changeTracker = new ChangeTracker(new JopaEntityStrategy(jopaEmf.getMetamodel()), new JpaStorageStrategy(jpaEm));
+        var storageStrategy = new JpaStorageStrategy(jpaEm);
+        // TODO: MultilingualStringDeserializer - first test crashing - non-null constraint of key violated
+        storageStrategy.registerDeserializer(IndirectMultilingualString.class, new IMSDeserializer());
+        this.changeTracker = new ChangeTracker(new JopaEntityStrategy(jopaEmf.getMetamodel()), storageStrategy);
     }
 
     /**
