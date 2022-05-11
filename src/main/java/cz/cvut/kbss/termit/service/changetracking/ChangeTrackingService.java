@@ -1,45 +1,56 @@
 package cz.cvut.kbss.termit.service.changetracking;
 
+import cz.cvut.kbss.changetracking.ChangeTracker;
+import cz.cvut.kbss.changetracking.model.JsonChangeVector;
+import cz.cvut.kbss.changetracking.strategy.entity.JopaEntityStrategy;
+import cz.cvut.kbss.changetracking.strategy.storage.JpaStorageStrategy;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
 import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
 import cz.cvut.kbss.termit.service.security.SecurityUtils;
 import cz.cvut.kbss.termit.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
-import java.time.Instant;
-import java.util.Collection;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * Tracks changes to assets.
  */
 @Service
+@EntityScan("cz.cvut.kbss.changetracking.model")
+@Transactional
 public class ChangeTrackingService {
     private static final Logger LOG = LoggerFactory.getLogger(ChangeTrackingService.class);
 
     private final ChangeCalculator changeCalculator;
 
     private final ChangeRecordDao changeRecordDao;
+    private final EntityManager jpaEm;
+    private final EntityManagerFactory jpaEmf;
+    private final ChangeTracker changeTracker;
 
     @Autowired
     public ChangeTrackingService(
             ChangeCalculator changeCalculator,
             ChangeRecordDao changeRecordDao,
-            EntityManagerFactory jpaEmf
+            javax.persistence.EntityManager jpaEm,
+            javax.persistence.EntityManagerFactory jpaEmf,
+            cz.cvut.kbss.jopa.model.EntityManagerFactory jopaEmf
     ) {
         this.changeCalculator = changeCalculator;
         this.changeRecordDao = changeRecordDao;
-        LOG.debug(String.valueOf(jpaEmf));
+        this.jpaEm = jpaEm;
+        this.jpaEmf = jpaEmf;
+        this.changeTracker = new ChangeTracker(new JopaEntityStrategy(jopaEmf.getMetamodel()), new JpaStorageStrategy(jpaEm));
     }
 
     /**
@@ -66,19 +77,16 @@ public class ChangeTrackingService {
      */
     @Transactional
     public void recordUpdateEvent(Asset<?> update, Asset<?> original) {
-        Objects.requireNonNull(update);
-        Objects.requireNonNull(original);
-        final Instant now = Utils.timestamp();
+        EntityManagerFactory emf = this.jpaEmf;
+        EntityManager em = this.jpaEm;
+        /*System.out.println(em.getTransaction());
+        System.out.println(em.isJoinedToTransaction());*/
+        em.persist(new JsonChangeVector());
         final User user = SecurityUtils.currentUser().toUser();
-        final Collection<UpdateChangeRecord> changes = changeCalculator.calculateChanges(update, original);
-        if (!changes.isEmpty()) {
-            LOG.trace("Found changes to attributes: " + changes.stream().map(ch -> ch.getChangedAttribute().toString())
-                                                               .collect(Collectors.joining(", ")));
-        }
-        changes.forEach(ch -> {
-            ch.setAuthor(user);
-            ch.setTimestamp(now);
-            changeRecordDao.persist(ch, update);
-        });
+        // set breakpoint on the line below -> step in -> step into StorageStrategy#save -> em#persist does nothing
+        //  except look up new ID, em#getTransaction ISEs, #isJoinedToTransaction() is false BUT
+        //  TransactionSynchronizationManager.isActualTransactionActive() is true
+        changeTracker.compareAndSave(original, update, user.getUri().toString());
+        // TODO: log
     }
 }

@@ -19,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 
@@ -32,6 +31,9 @@ class ChangeTrackingServiceTest extends BaseServiceTestRunner {
 
     @Autowired
     private EntityManager em;
+
+    @Autowired
+    private javax.persistence.EntityManager jpaEm;
 
     @Autowired
     private DescriptorFactory descriptorFactory;
@@ -73,12 +75,11 @@ class ChangeTrackingServiceTest extends BaseServiceTestRunner {
         assertNotNull(record.getTimestamp());
     }
 
+    @SuppressWarnings("unchecked")
     private List<AbstractChangeRecord> findRecords(HasIdentifier entity) {
-        return em.createNativeQuery("SELECT ?x WHERE { ?x a ?changeRecord ; ?concerns ?entity . }", AbstractChangeRecord.class)
-                 .setParameter("changeRecord", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_c_zmena))
-                 .setParameter("concerns", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_zmenenou_entitu))
-                 .setParameter("entity", entity.getUri())
-                 .getResultList();
+        /*return jpaEm.createQuery("select v from JsonChangeVector v where v.objectId = :id")
+                    .setParameter("id", entity.getUri().toString()).getResultList();*/
+        return jpaEm.createQuery("select v from JsonChangeVector v").getResultList();
     }
 
     @Test
