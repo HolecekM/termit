@@ -14,10 +14,10 @@
  */
 package cz.cvut.kbss.termit.model;
 
+import cz.cvut.kbss.changetracking.annotation.Audited;
 import cz.cvut.kbss.jopa.model.annotations.*;
 import cz.cvut.kbss.jopa.vocabulary.DC;
 import cz.cvut.kbss.jsonld.annotation.JsonLdAttributeOrder;
-import cz.cvut.kbss.termit.model.changetracking.Audited;
 import cz.cvut.kbss.termit.model.resource.Document;
 
 import javax.validation.constraints.NotBlank;
