@@ -120,7 +120,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
         }
     }
 
-    @Transactional
+    @Transactional("txManager")
     public void setStatus(Term term, TermStatus status) {
         Objects.requireNonNull(term);
         Objects.requireNonNull(status);

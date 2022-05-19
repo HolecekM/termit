@@ -15,6 +15,7 @@
 package cz.cvut.kbss.termit.model.resource;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import cz.cvut.kbss.changetracking.annotation.Audited;
 import cz.cvut.kbss.jopa.model.annotations.OWLAnnotationProperty;
 import cz.cvut.kbss.jopa.model.annotations.OWLClass;
 import cz.cvut.kbss.jopa.model.annotations.OWLDataProperty;
@@ -22,7 +23,6 @@ import cz.cvut.kbss.jopa.model.annotations.ParticipationConstraints;
 import cz.cvut.kbss.jopa.vocabulary.DC;
 import cz.cvut.kbss.jsonld.annotation.JsonLdAttributeOrder;
 import cz.cvut.kbss.termit.model.Asset;
-import cz.cvut.kbss.termit.model.changetracking.Audited;
 import cz.cvut.kbss.termit.util.Vocabulary;
 
 import javax.validation.constraints.NotBlank;

@@ -28,22 +28,22 @@ public class ChangeTrackingAspect {
     private ChangeTrackingHelperDao helperDao;
 
     @Pointcut(value = "execution(public void persist(..)) && target(cz.cvut.kbss.termit.persistence.dao.GenericDao) " +
-            "&& @args(cz.cvut.kbss.termit.model.changetracking.Audited)")
+            "&& @args(cz.cvut.kbss.changetracking.annotation.Audited)")
     public void persistOperation() {
     }
 
     @Pointcut(value = "execution(public void persist(..)) && target(cz.cvut.kbss.termit.persistence.dao.TermDao) " +
-            "&& @args(cz.cvut.kbss.termit.model.changetracking.Audited, *)")
+            "&& @args(cz.cvut.kbss.changetracking.annotation.Audited, *)")
     public void persistTermOperation() {
     }
 
     @Pointcut(value = "execution(public * update(..)) && target(cz.cvut.kbss.termit.persistence.dao.GenericDao) " +
-            "&& @args(cz.cvut.kbss.termit.model.changetracking.Audited)")
+            "&& @args(cz.cvut.kbss.changetracking.annotation.Audited)")
     public void updateOperation() {
     }
 
     @Pointcut(value = "execution(private void setTermDraftStatusTo(..)) && target(cz.cvut.kbss.termit.persistence.dao.TermDao)" +
-            "&& @args(cz.cvut.kbss.termit.model.changetracking.Audited, *)")
+            "&& @args(cz.cvut.kbss.changetracking.annotation.Audited, *)")
     public void termDraftStatusUpdateOperation() {
     }
 
