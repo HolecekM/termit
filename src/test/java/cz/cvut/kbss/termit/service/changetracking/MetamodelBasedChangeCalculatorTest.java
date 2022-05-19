@@ -265,9 +265,7 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final Collection<ChangeVector<?>> result = sut.getChangeVectors(original, changed, true);
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
-        // FIXME: why collection?
         assertEquals(original.getLabel(), record.getPreviousValue());
-        //assertEquals(Collections.singleton(changed.getLabel()), record.getNewValue());
     }
 
     @Test
@@ -283,9 +281,7 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final Collection<ChangeVector<?>> result = sut.getChangeVectors(original, changed, true);
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
-        // FIXME: why collection?
         assertEquals(original.getGlossary().getUri(), record.getPreviousValue());
-        //assertEquals(Collections.singleton(changed.getGlossary().getUri()), record.getNewValue());
     }
 
     @Test
@@ -299,7 +295,6 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
         assertNull(record.getPreviousValue());
-        //assertEquals(changed.getSources(), record.getNewValue());
     }
 
     @Test
@@ -314,8 +309,6 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final ChangeVector<?> record = result.iterator().next();
         assertEquals(original.getParentTerms().stream().map(Term::getUri).collect(Collectors.toSet()),
                 record.getPreviousValue());
-       /* assertEquals(changed.getParentTerms().stream().map(Term::getUri).collect(Collectors.toSet()),
-                record.getNewValue());*/
     }
 
     @Test
@@ -328,8 +321,7 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final Collection<ChangeVector<?>> result = sut.getChangeVectors(original, changed, true);
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
-        assertEquals(Collections.singleton(original.getGlossary()), record.getPreviousValue());
-        //assertEquals(Collections.singleton(changed.getGlossary()), record.getNewValue());
+        assertEquals(original.getGlossary(), record.getPreviousValue());
     }
 
     @Test
@@ -345,7 +337,6 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
         assertEquals(original.getImportedVocabularies(), record.getPreviousValue());
-        //assertEquals(changed.getImportedVocabularies(), record.getNewValue());
     }
 
     @Test
@@ -357,9 +348,7 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final Collection<ChangeVector<?>> result = sut.getChangeVectors(original, changed, true);
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
-        assertEquals(original.getTypes().stream().map(URI::create).collect(Collectors.toSet()),
-                record.getPreviousValue());
-        //assertNull(record.getNewValue());
+        assertEquals(original.getTypes(), record.getPreviousValue());
     }
 
     @Test
@@ -374,7 +363,6 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
         assertEquals(original.getProperties().get(property.toString()), record.getPreviousValue());
-        //assertEquals(changed.getProperties().get(property.toString()), record.getNewValue());
     }
 
     @Test
@@ -388,7 +376,6 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
         assertNull(record.getPreviousValue());
-        //assertEquals(changed.getProperties().get(property.toString()), record.getNewValue());
     }
 
     @Test
@@ -400,10 +387,7 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final Collection<ChangeVector<?>> result = sut.getChangeVectors(original, changed, true);
         assertEquals(1, result.size());
         final ChangeVector<?> record = result.iterator().next();
-        // TODO
-        //assertThat(record.getPreviousValue(), anyOf(nullValue(), emptyCollectionOf(Object.class)));
-        /*assertEquals(changed.getParentTerms().stream().map(Term::getUri).collect(Collectors.toSet()),
-                record.getNewValue());*/
+        assertNull(record.getPreviousValue());
     }
 
     @Test
@@ -413,7 +397,6 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final Term changed = cloneOf(original);
         changed.setTypes(null);
         final Collection<ChangeVector<?>> result = sut.getChangeVectors(original, changed, true);
-        // TODO: implement in changetracking?
         assertTrue(result.isEmpty());
     }
 
@@ -434,8 +417,6 @@ class MetamodelBasedChangeCalculatorTest extends AbstractChangeTrackingTest {
         final Term changed = cloneOf(original);
         changed.setExternalParentTerms(new HashSet<>());
         final Collection<ChangeVector<?>> result = sut.getChangeVectors(original, changed, true);
-        // TODO: implement in changetracking?
         assertTrue(result.isEmpty());
-        //assertThat(result, emptyCollectionOf(ChangeVector.class));
     }
 }
