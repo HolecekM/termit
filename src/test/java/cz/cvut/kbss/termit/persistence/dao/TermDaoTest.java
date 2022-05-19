@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.persistence.dao;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.model.query.TypedQuery;
@@ -10,13 +11,14 @@ import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.environment.TestChangeVectorPersistService;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.Term;
+import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.selector.TextQuoteSelector;
@@ -48,6 +50,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class TermDaoTest extends BaseDaoTestRunner {
+
+    @Autowired
+    private TestChangeVectorPersistService vectorPersistService;
 
     @Autowired
     private EntityManager em;
@@ -834,17 +839,20 @@ class TermDaoTest extends BaseDaoTestRunner {
     }
 
     @Test
+    // TODO: fix this test
     void findLastEditedLoadsVocabularyForTerms() {
         enableRdfsInference(em);
         final Term term = Generator.generateTermWithId();
         term.setGlossary(vocabulary.getGlossary().getUri());
-        final PersistChangeRecord persistRecord = Generator.generatePersistChange(term);
-        persistRecord.setAuthor(Generator.generateUserWithId());
+        final ChangeVector<?> vector = Generator.generateUpdateChangeVector(term);
+        User author = Generator.generateUserWithId();
+        vector.setAuthorId(author.getUri().toString());
         transactional(() -> {
             em.persist(term, descriptorFactory.termDescriptor(vocabulary));
-            em.persist(persistRecord.getAuthor());
-            em.persist(persistRecord);
+            em.persist(author);
         });
+
+        jpaTransactional(() -> vectorPersistService.persistChangeVectors(vector));
 
         final List<RecentlyModifiedAsset> result = sut.findLastEdited(1);
         assertFalse(result.isEmpty());

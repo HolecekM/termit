@@ -20,12 +20,6 @@ public class TestPersistenceAspectsConfig {
     }
 
     @Bean
-    @Primary
-    public ChangeTrackingService changeTracker() {
-        return mock(ChangeTrackingService.class);
-    }
-
-    @Bean
     VocabularyContentModificationAspect vocabularyContentModificationAspect() {
         return Aspects.aspectOf(VocabularyContentModificationAspect.class);
     }

@@ -11,6 +11,7 @@
  */
 package cz.cvut.kbss.termit.service.business;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.event.DocumentRenameEvent;
 import cz.cvut.kbss.termit.event.FileRenameEvent;
@@ -20,7 +21,6 @@ import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.exception.UnsupportedAssetOperationException;
 import cz.cvut.kbss.termit.model.TextAnalysisRecord;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
@@ -414,7 +414,7 @@ class ResourceServiceTest {
     @Test
     void getChangesLoadsChangeRecordsForSpecifiedAssetFromChangeRecordService() {
         final Resource resource = Generator.generateResourceWithId();
-        final List<AbstractChangeRecord> records = Collections.singletonList(Generator.generatePersistChange(resource));
+        final List<ChangeVector<?>> records = Collections.singletonList(Generator.generateUpdateChangeVector(resource));
         when(changeRecordService.getChanges(resource)).thenReturn(records);
         assertEquals(records, sut.getChanges(resource));
         verify(changeRecordService).getChanges(resource);

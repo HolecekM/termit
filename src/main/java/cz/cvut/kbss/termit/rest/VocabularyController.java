@@ -14,10 +14,10 @@
  */
 package cz.cvut.kbss.termit.rest;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
@@ -139,7 +139,7 @@ public class VocabularyController extends BaseController {
      * Gets the change history of a vocabulary with the specified identification
      */
     @GetMapping(value = "/{fragment}/history", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public List<AbstractChangeRecord> getHistory(@PathVariable String fragment,
+    public List<ChangeVector<?>> getHistory(@PathVariable String fragment,
                                                  @RequestParam(name = QueryParams.NAMESPACE,
                                                                required = false) Optional<String> namespace) {
         final Vocabulary vocabulary = vocabularyService.getRequiredReference(resolveVocabularyUri(fragment, namespace));

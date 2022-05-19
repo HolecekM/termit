@@ -54,7 +54,7 @@ class ChangeTrackingServiceTest extends AbstractChangeTrackingTest {
     }
 
     private List<ChangeVector<?>> findRecords(HasIdentifier entity) {
-        return sut.getAllForObject(entity.getClass().getAnnotation(OWLClass.class).iri(), entity.getUri().toString());
+        return sut.getAllForObject(entity);
     }
 
     @Test
@@ -65,7 +65,7 @@ class ChangeTrackingServiceTest extends AbstractChangeTrackingTest {
         transactional(() -> em.persist(original, descriptorFactory.termDescriptor(original)));
 
         final Term update = cloneOf(original);
-        transactional(() -> sut.recordUpdateEvent(update, original));
+        jpaTransactional(() -> sut.recordUpdateEvent(update, original));
 
         assertTrue(findRecords(original).isEmpty());
     }
@@ -79,8 +79,7 @@ class ChangeTrackingServiceTest extends AbstractChangeTrackingTest {
 
         final Term update = cloneOf(original);
         update.setDefinition(MultilingualString.create("Updated definition of this term.", Environment.LANGUAGE));
-        transactional(() -> sut.recordUpdateEvent(update, original));
-
+        jpaTransactional(() -> sut.recordUpdateEvent(update, original));
 
         final List<ChangeVector<?>> result = findRecords(original);
         assertEquals(1, result.size());
@@ -99,7 +98,7 @@ class ChangeTrackingServiceTest extends AbstractChangeTrackingTest {
         final Term update = cloneOf(original);
         update.setDefinition(MultilingualString.create("Updated definition of this term.", Environment.LANGUAGE));
         update.setSources(Collections.singleton(Generator.generateUri().toString()));
-        transactional(() -> sut.recordUpdateEvent(update, original));
+        jpaTransactional(() -> sut.recordUpdateEvent(update, original));
 
         final List<ChangeVector<?>> result = findRecords(original);
         assertEquals(2, result.size());

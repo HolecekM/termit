@@ -16,6 +16,7 @@ package cz.cvut.kbss.termit.model.resource;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import cz.cvut.kbss.changetracking.annotation.Audited;
 import cz.cvut.kbss.jopa.model.annotations.*;
 import cz.cvut.kbss.jsonld.annotation.JsonLdAttributeOrder;
 import cz.cvut.kbss.termit.exception.TermItException;
@@ -29,6 +30,7 @@ import java.util.Set;
 
 @OWLClass(iri = Vocabulary.s_c_soubor)
 @JsonLdAttributeOrder({"uri", "label", "description"})
+@Audited
 public class File extends Resource implements SupportsStorage {
 
     @JsonBackReference

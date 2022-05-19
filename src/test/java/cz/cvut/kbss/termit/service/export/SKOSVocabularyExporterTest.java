@@ -68,7 +68,6 @@ class SKOSVocabularyExporterTest extends BaseServiceTestRunner {
         transactional(() -> {
             em.persist(author);
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
-            em.persist(Generator.generatePersistChange(vocabulary));
         });
     }
 

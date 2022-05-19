@@ -28,6 +28,15 @@ spring:
             config: classpath:ehcache.xml
     profiles:
         active: @spring.profiles.active@
+    datasource:
+        # TODO: change for your environment!
+        driver-class-name: org.mariadb.jdbc.Driver
+        url: jdbc:mariadb://localhost:3306/termit
+        username: root
+        password: mysecretpassword
+    jpa:
+        hibernate:
+            ddl-auto: update
 javamelody:
     init-parameters:
         authorized-users: admin:kral0vnat3rm1t1st3

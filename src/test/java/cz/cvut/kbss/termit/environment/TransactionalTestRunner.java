@@ -19,15 +19,28 @@ package cz.cvut.kbss.termit.environment;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.transaction.PlatformTransactionManager;
 
+@AutoConfigureDataJpa
+@AutoConfigurationPackage(basePackageClasses = {cz.cvut.kbss.termit.config.AppConfig.class})
 public abstract class TransactionalTestRunner {
 
     @Autowired
     protected PlatformTransactionManager txManager;
 
+    @Autowired
+    @Qualifier("jpaTxManager")
+    protected PlatformTransactionManager jpaTxManager;
+
     protected void transactional(Runnable procedure) {
         Transaction.execute(txManager, procedure);
+    }
+
+    protected void jpaTransactional(Runnable runnable) {
+        Transaction.execute(jpaTxManager, runnable);
     }
 
     protected void enableRdfsInference(EntityManager em) {

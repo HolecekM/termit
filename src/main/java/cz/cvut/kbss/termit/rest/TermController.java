@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.rest;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.dto.TermStatus;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
@@ -9,7 +10,6 @@ import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.rest.util.RestUtils;
 import cz.cvut.kbss.termit.security.SecurityConstants;
@@ -474,7 +474,7 @@ public class TermController extends BaseController {
 
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/{termIdFragment}/history",
                 produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public List<AbstractChangeRecord> getHistory(@PathVariable("vocabularyIdFragment") String vocabularyIdFragment,
+    public List<ChangeVector<?>> getHistory(@PathVariable("vocabularyIdFragment") String vocabularyIdFragment,
                                                  @PathVariable("termIdFragment") String termIdFragment,
                                                  @RequestParam(name = QueryParams.NAMESPACE,
                                                                required = false) Optional<String> namespace) {
@@ -491,7 +491,7 @@ public class TermController extends BaseController {
      */
     @GetMapping(value = "/terms/{termIdFragment}/history",
                 produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public List<AbstractChangeRecord> getHistory(@PathVariable("termIdFragment") String termIdFragment,
+    public List<ChangeVector<?>> getHistory(@PathVariable("termIdFragment") String termIdFragment,
                                                  @RequestParam(name = QueryParams.NAMESPACE,
                                                                required = false) String namespace) {
         final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment);

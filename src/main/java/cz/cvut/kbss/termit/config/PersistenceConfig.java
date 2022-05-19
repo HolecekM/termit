@@ -14,8 +14,11 @@
  */
 package cz.cvut.kbss.termit.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.ledsoft.jopa.spring.transaction.DelegatingEntityManager;
 import com.github.ledsoft.jopa.spring.transaction.JopaTransactionManager;
+import cz.cvut.kbss.changetracking.strategy.storage.JpaStorageStrategy;
+import cz.cvut.kbss.changetracking.strategy.storage.StorageStrategy;
 import cz.cvut.kbss.jopa.model.EntityManagerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +26,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import javax.persistence.EntityManager;
 
 @Configuration
 @EnableTransactionManagement
@@ -42,5 +47,11 @@ public class PersistenceConfig {
     @Bean
     public PlatformTransactionManager jpaTxManager() {
         return new JpaTransactionManager();
+    }
+
+    @Bean
+    public StorageStrategy changeTrackerStorageStrategy(EntityManager jpaEm) {
+        ObjectMapper mapper = WebAppConfig.createJsonObjectMapper();
+        return new JpaStorageStrategy(jpaEm, mapper);
     }
 }

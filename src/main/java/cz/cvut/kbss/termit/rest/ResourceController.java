@@ -17,10 +17,10 @@
  */
 package cz.cvut.kbss.termit.rest;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.model.TextAnalysisRecord;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.security.SecurityConstants;
@@ -217,7 +217,7 @@ public class ResourceController extends BaseController {
      * Gets the change history of a vocabulary with the specified identification
      */
     @GetMapping(value = "/{fragment}/history", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public List<AbstractChangeRecord> getHistory(@PathVariable String fragment,
+    public List<ChangeVector<?>> getHistory(@PathVariable String fragment,
                                                  @RequestParam(name = QueryParams.NAMESPACE,
                                                                required = false) Optional<String> namespace) {
         final Resource resource = resourceService

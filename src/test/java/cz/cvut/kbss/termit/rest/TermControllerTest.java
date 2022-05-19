@@ -2,7 +2,9 @@ package cz.cvut.kbss.termit.rest;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.jsonldjava.utils.JsonUtils;
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.MultilingualString;
+import cz.cvut.kbss.jopa.model.annotations.OWLClass;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.dto.TermStatus;
@@ -14,8 +16,6 @@ import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
 import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.rest.handler.ErrorInfo;
@@ -39,6 +39,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
@@ -67,6 +68,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
+@ComponentScan(basePackages = {"cz.cvut.kbss.termit.config"})
 class TermControllerTest extends BaseControllerTestRunner {
 
     private static final String PATH = "/vocabularies/";
@@ -779,25 +781,25 @@ class TermControllerTest extends BaseControllerTestRunner {
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
         when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
-        final List<AbstractChangeRecord> records = generateChangeRecords(term);
+        final List<ChangeVector<?>> records = generateChangeRecords(term);
         when(termServiceMock.getChanges(term)).thenReturn(records);
 
         final MvcResult mvcResult = mockMvc
                 .perform(get(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME + "/history"))
                 .andExpect(status().isOk()).andReturn();
-        final List<AbstractChangeRecord> result = readValue(mvcResult, new TypeReference<List<AbstractChangeRecord>>() {
-        });
+        final List<ChangeVector<?>> result = readValue(mvcResult, new TypeReference<>() {});
         assertNotNull(result);
         assertEquals(records, result);
     }
 
-    private List<AbstractChangeRecord> generateChangeRecords(Term term) {
+    private List<ChangeVector<?>> generateChangeRecords(Term term) {
         final User author = Generator.generateUserWithId();
         return IntStream.range(0, 5).mapToObj(i -> {
-            final UpdateChangeRecord record = new UpdateChangeRecord(term);
-            record.setAuthor(author);
-            record.setChangedAttribute(URI.create(SKOS.PREF_LABEL));
-            record.setTimestamp(Instant.ofEpochSecond(System.currentTimeMillis() + i * 1000L));
+            final ChangeVector<?> record = new ChangeVector<>(term.getClass().getAnnotation(OWLClass.class).iri(),
+                    term.getUri().toString(), SKOS.PREF_LABEL, null,
+                    Instant.ofEpochSecond(System.currentTimeMillis() + i * 1000L)
+            );
+            record.setAuthorId(author.getUri().toString());
             return record;
         }).collect(Collectors.toList());
     }
@@ -809,15 +811,14 @@ class TermControllerTest extends BaseControllerTestRunner {
         term.setUri(termUri);
         when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
         when(termServiceMock.getRequiredReference(termUri)).thenReturn(term);
-        final List<AbstractChangeRecord> records = generateChangeRecords(term);
+        final List<ChangeVector<?>> records = generateChangeRecords(term);
         when(termServiceMock.getChanges(term)).thenReturn(records);
 
         final MvcResult mvcResult = mockMvc
                 .perform(get("/terms/" + TERM_NAME + "/history").param(QueryParams.NAMESPACE, NAMESPACE))
                 .andExpect(status().isOk())
                 .andReturn();
-        final List<AbstractChangeRecord> result = readValue(mvcResult, new TypeReference<List<AbstractChangeRecord>>() {
-        });
+        final List<ChangeVector<?>> result = readValue(mvcResult, new TypeReference<>() {});
         assertNotNull(result);
         assertEquals(records, result);
     }

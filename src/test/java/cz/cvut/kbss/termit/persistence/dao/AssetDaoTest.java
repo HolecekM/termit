@@ -14,13 +14,13 @@
  */
 package cz.cvut.kbss.termit.persistence.dao;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.termit.dto.RecentlyModifiedAsset;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.environment.TestChangeVectorPersistService;
 import cz.cvut.kbss.termit.model.User;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
 import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.util.Vocabulary;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,20 +28,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.net.URI;
-import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AssetDaoTest extends BaseDaoTestRunner {
 
     @Autowired
     private EntityManager em;
+
+    @Autowired
+    private TestChangeVectorPersistService vectorPersistService;
 
     @Autowired
     private ResourceDao sut;
@@ -61,12 +61,8 @@ class AssetDaoTest extends BaseDaoTestRunner {
         final List<Resource> resources = IntStream.range(0, 10).mapToObj(i -> Generator.generateResourceWithId())
                                                   .collect(Collectors.toList());
         transactional(() -> resources.forEach(em::persist));
-        final List<PersistChangeRecord> persistRecords = resources.stream().map(Generator::generatePersistChange)
-                                                                  .collect(Collectors.toList());
-        setOldCreated(persistRecords.subList(0, 5));
         final List<URI> recent = resources.subList(5, resources.size()).stream().map(Resource::getUri)
                                           .collect(Collectors.toList());
-        transactional(() -> persistRecords.forEach(em::persist));
 
         final int count = 3;
         final List<RecentlyModifiedAsset> result = sut.findLastEdited(count);
@@ -80,16 +76,10 @@ class AssetDaoTest extends BaseDaoTestRunner {
         final List<Resource> resources = IntStream.range(0, 10).mapToObj(i -> Generator.generateResourceWithId())
                                                   .collect(Collectors.toList());
         transactional(() -> resources.forEach(em::persist));
-        final List<PersistChangeRecord> persistRecords = resources.stream().map(Generator::generatePersistChange)
-                                                                  .collect(Collectors.toList());
-        setOldCreated(persistRecords);
         final List<Resource> recent = resources.subList(5, resources.size());
-        final List<UpdateChangeRecord> updateRecords = recent.stream().map(Generator::generateUpdateChange)
-                                                             .collect(Collectors.toList());
-        transactional(() -> {
-            persistRecords.forEach(em::persist);
-            updateRecords.forEach(em::persist);
-        });
+        final List<ChangeVector<?>> updateRecords = recent.stream().map(Generator::generateUpdateChangeVector)
+                                                       .collect(Collectors.toList());
+        jpaTransactional(() -> vectorPersistService.persistChangeVectors(updateRecords.toArray(ChangeVector[]::new)));
         em.getEntityManagerFactory().getCache().evictAll();
 
         final int count = 3;
@@ -100,22 +90,18 @@ class AssetDaoTest extends BaseDaoTestRunner {
                 .containsAll(result.stream().map(RecentlyModifiedAsset::getUri).collect(Collectors.toList())));
     }
 
-    private void setOldCreated(List<PersistChangeRecord> old) {
-        old.forEach(r -> r.setTimestamp(Instant.ofEpochMilli(System.currentTimeMillis() - 24 * 3600 * 1000)));
-    }
-
     @Test
     void findRecentlyEditedReturnsAlsoTypeOfChange() {
         enableRdfsInference(em);
         final Resource resource = Generator.generateResourceWithId();
         transactional(() -> em.persist(resource));
-        final PersistChangeRecord persistRecord = Generator.generatePersistChange(resource);
-        transactional(() -> em.persist(persistRecord));
+        final ChangeVector<?> vector = Generator.generateUpdateChangeVector(resource);
+        jpaTransactional(() -> em.persist(vector));
 
         final int count = 3;
         final List<RecentlyModifiedAsset> result = sut.findLastEdited(count);
         assertFalse(result.isEmpty());
-        result.forEach(rma -> assertThat(rma.getTypes(), hasItem(Vocabulary.s_c_vytvoreni_entity)));
+        result.forEach(rma -> assertTrue(rma.getTypes().contains(Vocabulary.s_c_uprava_entity)));
     }
 
     @Test
@@ -123,7 +109,7 @@ class AssetDaoTest extends BaseDaoTestRunner {
         enableRdfsInference(em);
         final List<Resource> mineResources = IntStream.range(0, 5).mapToObj(i -> Generator.generateResourceWithId())
                                                       .collect(Collectors.toList());
-        final List<PersistChangeRecord> persistRecords = mineResources.stream().map(Generator::generatePersistChange)
+        final List<ChangeVector<?>> persistRecords = mineResources.stream().map(Generator::generateUpdateChangeVector)
                                                                       .collect(Collectors.toList());
         final List<Resource> othersResources = IntStream.range(0, 5).mapToObj(i -> Generator.generateResourceWithId())
                                                         .collect(Collectors.toList());
@@ -133,12 +119,13 @@ class AssetDaoTest extends BaseDaoTestRunner {
             othersResources.forEach(em::persist);
             em.persist(otherUser);
         });
-        final List<PersistChangeRecord> otherPersistRecords = othersResources.stream().map(r -> {
-            final PersistChangeRecord rec = Generator.generatePersistChange(r);
-            rec.setAuthor(otherUser);
+        final List<ChangeVector<?>> otherPersistRecords = othersResources.stream().map(r -> {
+            final ChangeVector<?> rec = Generator.generateUpdateChangeVector(r);
+            rec.setAuthorId(otherUser.getUri().toString());
             return rec;
         }).collect(Collectors.toList());
-        transactional(() -> {
+
+        jpaTransactional(() -> {
             persistRecords.forEach(em::persist);
             otherPersistRecords.forEach(em::persist);
         });

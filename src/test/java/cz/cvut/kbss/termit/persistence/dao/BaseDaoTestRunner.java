@@ -12,6 +12,7 @@
 package cz.cvut.kbss.termit.persistence.dao;
 
 import cz.cvut.kbss.termit.environment.TransactionalTestRunner;
+import cz.cvut.kbss.termit.environment.WithMockTermItUser;
 import cz.cvut.kbss.termit.environment.config.TestPersistenceAspectsConfig;
 import cz.cvut.kbss.termit.environment.config.TestPersistenceConfig;
 import cz.cvut.kbss.termit.util.Configuration;
@@ -31,5 +32,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 @ContextConfiguration(classes = {TestPersistenceConfig.class, TestPersistenceAspectsConfig.class}, initializers = {ConfigDataApplicationContextInitializer.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test")
+@WithMockTermItUser
 public abstract class BaseDaoTestRunner extends TransactionalTestRunner {
 }

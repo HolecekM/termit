@@ -1,7 +1,7 @@
 package cz.cvut.kbss.termit.service.changetracking;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.termit.model.Asset;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 
 import java.util.List;
 
@@ -18,5 +18,5 @@ public interface ChangeRecordProvider<T extends Asset> {
      * @param asset Asset to find change records for
      * @return List of change records, ordered by record timestamp in descending order
      */
-    List<AbstractChangeRecord> getChanges(T asset);
+    List<ChangeVector<?>> getChanges(T asset);
 }

@@ -16,13 +16,16 @@ import cz.cvut.kbss.termit.environment.TestPersistenceFactory;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @TestConfiguration
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 @Import({TestPersistenceFactory.class, PersistenceConfig.class})
-@ComponentScan(basePackages = "cz.cvut.kbss.termit.persistence")
+@ComponentScan(basePackages = {"cz.cvut.kbss.termit.persistence", "cz.cvut.kbss.termit.environment"}, excludeFilters = {
+        @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, value = {TestRestSecurityConfig.class})
+})
 @EnableTransactionManagement
 public class TestPersistenceConfig {
 }

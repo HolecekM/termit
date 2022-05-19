@@ -14,16 +14,15 @@
  */
 package cz.cvut.kbss.termit.persistence.dao;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.environment.TestChangeVectorPersistService;
 import cz.cvut.kbss.termit.event.RefreshLastModifiedEvent;
 import cz.cvut.kbss.termit.model.*;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
@@ -33,10 +32,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.annotation.DirtiesContext;
 
 import java.net.URI;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -48,6 +45,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class VocabularyDaoTest extends BaseDaoTestRunner {
+
+    @Autowired
+    private TestChangeVectorPersistService vectorPersistService;
 
     @Autowired
     private EntityManager em;
@@ -349,11 +349,8 @@ class VocabularyDaoTest extends BaseDaoTestRunner {
         final Vocabulary vocabulary = Generator.generateVocabularyWithId();
         final Term termOne = Generator.generateTermWithId();
         final Term termTwo = Generator.generateTermWithId();
-        final List<AbstractChangeRecord> oneChanges = Generator.generateChangeRecords(termOne, author);
-        // Randomize the timestamp. We do not care about sequentiality of persist/update here
-        oneChanges.forEach(ch -> ch.setTimestamp(Instant.now().minus(Generator.randomInt(1, 10), ChronoUnit.DAYS)));
-        final List<AbstractChangeRecord> twoChanges = Generator.generateChangeRecords(termTwo, author);
-        twoChanges.forEach(ch -> ch.setTimestamp(Instant.now().minus(Generator.randomInt(1, 10), ChronoUnit.DAYS)));
+        final List<ChangeVector<?>> oneChanges = Generator.generateChangeVectors(termOne, author);
+        final List<ChangeVector<?>> twoChanges = Generator.generateChangeVectors(termTwo, author);
         transactional(() -> {
             vocabulary.getGlossary().addRootTerm(termOne);
             vocabulary.getGlossary().addRootTerm(termTwo);
@@ -364,18 +361,16 @@ class VocabularyDaoTest extends BaseDaoTestRunner {
             em.persist(termTwo, descriptorFactory.termDescriptor(vocabulary));
             Generator.addTermInVocabularyRelationship(termOne, vocabulary.getUri(), em);
             Generator.addTermInVocabularyRelationship(termTwo, vocabulary.getUri(), em);
-            oneChanges.forEach(ch -> em.persist(ch));
-            twoChanges.forEach(ch -> em.persist(ch));
         });
-        final Map<LocalDate, Integer> persists = resolveExpectedPersists(oneChanges, twoChanges);
+        jpaTransactional(() -> {
+            vectorPersistService.persistChangeVectors(oneChanges.toArray(ChangeVector[]::new));
+            vectorPersistService.persistChangeVectors(twoChanges.toArray(ChangeVector[]::new));
+        });
+
+
         final Map<LocalDate, Integer> updates = resolveExpectedUpdates(oneChanges, twoChanges);
 
         final List<AggregatedChangeInfo> result = sut.getChangesOfContent(vocabulary);
-        result.stream().filter(r -> r.hasType(cz.cvut.kbss.termit.util.Vocabulary.s_c_vytvoreni_entity))
-              .forEach(r -> {
-                  assertTrue(persists.containsKey(r.getDate()));
-                  assertEquals(persists.get(r.getDate()), r.getCount());
-              });
         result.stream().filter(r -> r.hasType(cz.cvut.kbss.termit.util.Vocabulary.s_c_uprava_entity))
               .forEach(r -> {
                   assertTrue(updates.containsKey(r.getDate()));
@@ -383,39 +378,24 @@ class VocabularyDaoTest extends BaseDaoTestRunner {
               });
     }
 
-    private Map<LocalDate, Integer> resolveExpectedPersists(List<AbstractChangeRecord> oneChanges,
-                                                            List<AbstractChangeRecord> twoChanges) {
-        final Map<LocalDate, Integer> persists = new HashMap<>();
-        // Expect at most one persist record
-        removeDuplicateDailyRecords(oneChanges, PersistChangeRecord.class).stream().filter(ch -> ch instanceof PersistChangeRecord)
-                                               .forEach(ch -> persists.put(
-                                                       LocalDate.ofInstant(ch.getTimestamp(), ZoneId.systemDefault()),
-                                                       1));
-        removeDuplicateDailyRecords(twoChanges, PersistChangeRecord.class).stream().filter(ch -> ch instanceof PersistChangeRecord)
-                                               .forEach(ch -> persists.compute(
-                                                       LocalDate.ofInstant(ch.getTimestamp(), ZoneId.systemDefault()),
-                                                       (k, v) -> v == null ? 1 : 2));
-        return persists;
-    }
-
     /**
      * Ensures there is at most one change record per day.
      */
-    private Collection<AbstractChangeRecord> removeDuplicateDailyRecords(Collection<AbstractChangeRecord> records, Class<? extends AbstractChangeRecord> type) {
-        final Map<LocalDate, AbstractChangeRecord> map = new HashMap<>();
-        records.stream().filter(type::isInstance).forEach(r -> map.put(LocalDate.ofInstant(r.getTimestamp(), ZoneId.systemDefault()), r));
+    private Collection<ChangeVector<?>> removeDuplicateDailyRecords(
+            Collection<ChangeVector<?>> records
+    ) {
+        final Map<LocalDate, ChangeVector<?>> map = new HashMap<>();
+        records.forEach(r -> map.put(LocalDate.ofInstant(r.getTimestamp(), ZoneId.systemDefault()), r));
         return map.values();
     }
 
-    private Map<LocalDate, Integer> resolveExpectedUpdates(List<AbstractChangeRecord> oneChanges,
-                                                           List<AbstractChangeRecord> twoChanges) {
+    private Map<LocalDate, Integer> resolveExpectedUpdates(List<ChangeVector<?>> oneChanges,
+                                                           List<ChangeVector<?>> twoChanges) {
         final Map<LocalDate, Integer> updates = new HashMap<>();
-        removeDuplicateDailyRecords(oneChanges, UpdateChangeRecord.class).stream().filter(ch -> ch instanceof UpdateChangeRecord)
-                                               .forEach(ch -> updates.put(
+        removeDuplicateDailyRecords(oneChanges).forEach(ch -> updates.put(
                                                        LocalDate.ofInstant(ch.getTimestamp(), ZoneId.systemDefault()),
                                                        1));
-        removeDuplicateDailyRecords(twoChanges, UpdateChangeRecord.class).stream().filter(ch -> ch instanceof UpdateChangeRecord)
-                                               .forEach(ch -> updates.compute(
+        removeDuplicateDailyRecords(twoChanges).forEach(ch -> updates.compute(
                                                        LocalDate.ofInstant(ch.getTimestamp(), ZoneId.systemDefault()),
                                                        (k, v) -> v == null ? 1 : 2));
         return updates;

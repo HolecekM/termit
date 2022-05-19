@@ -12,8 +12,6 @@ import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
-import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.service.repository.ResourceRepositoryService;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
@@ -54,10 +52,7 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
     private Vocabulary vocabulary;
 
     List<ChangeVector<?>> getAll(Asset<?> asset) {
-        return changeTrackingService.getAllForObject(
-                cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnik,
-                asset.getUri().toString()
-        );
+        return changeTrackingService.getAllForObject(asset);
     }
 
     @BeforeEach
@@ -77,7 +72,7 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
 
         final List<ChangeVector<?>> result = getAll(vocabulary);
         assertEquals(1, result.size());
-        assertEquals(vocabulary.getUri(), result.get(0).getObjectId());
+        assertEquals(vocabulary.getUri().toString(), result.get(0).getObjectId());
         assertEquals(DC.Terms.TITLE, result.get(0).getAttributeName());
     }
 
@@ -96,8 +91,8 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
         final List<ChangeVector<?>> result = getAll(vocabulary);
         assertEquals(2, result.size());
         result.forEach(chr -> {
-            assertEquals(vocabulary.getUri(), chr.getObjectId());
-            assertThat(result.get(0), instanceOf(UpdateChangeRecord.class));
+            assertEquals(vocabulary.getUri().toString(), chr.getObjectId());
+            assertThat(result.get(0), instanceOf(ChangeVector.class));
             assertThat(chr.getAttributeName(), anyOf(equalTo(DC.Terms.TITLE),
                                                                                           equalTo(cz.cvut.kbss.termit.util.Vocabulary.s_p_importuje_slovnik)));
         });
@@ -120,7 +115,7 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
 
         final List<ChangeVector<?>> result = getAll(term);
         assertEquals(1, result.size());
-        assertEquals(term.getUri(), result.get(0).getObjectId());
+        assertEquals(term.getUri().toString(), result.get(0).getObjectId());
         assertEquals(SKOS.DEFINITION, result.get(0).getAttributeName());
     }
 
@@ -145,12 +140,12 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
 
         final List<ChangeVector<?>> result = getAll(term);
         assertEquals(1, result.size());
-        assertEquals(term.getUri(), result.get(0).getObjectId());
+        assertEquals(term.getUri().toString(), result.get(0).getObjectId());
         assertEquals(SKOS.BROADER, result.get(0).getAttributeName());
     }
 
     @Test
-    void updatingTermLiteralAttributesCreatesChangeRecordWithOriginalAndNewValue() {
+    void updatingTermLiteralAttributesCreatesChangeRecordWithOriginalValue() {
         enableRdfsInference(em);
         final Term term = Generator.generateTermWithId();
         final MultilingualString originalDefinition = term.getDefinition();
@@ -171,7 +166,6 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
         assertEquals(1, result.size());
         assertEquals(Collections.singleton(originalDefinition),
                      result.get(0).getPreviousValue());
-        //assertEquals(Collections.singleton(newDefinition), result.get(0).getNewValue());
     }
 
     @Test
@@ -196,17 +190,6 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
         final List<ChangeVector<?>> result = getAll(term);
         assertFalse(result.isEmpty());
         assertNull(result.get(0).getPreviousValue());
-        //assertEquals(Collections.singleton(parent.getUri()), result.get(0).getNewValue());
-    }
-
-    @Test
-    void persistingFileDoesNotCreatePersistChangeRecord() {
-        enableRdfsInference(em);
-        final File file = Generator.generateFileWithId("test.html");
-        transactional(() -> resourceService.persist(file));
-
-        final List<ChangeVector<?>> result = getAll(file);
-        assertEquals(0, result.size());
     }
 
     @Test

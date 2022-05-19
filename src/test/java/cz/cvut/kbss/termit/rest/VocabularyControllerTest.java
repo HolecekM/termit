@@ -1,6 +1,7 @@
 package cz.cvut.kbss.termit.rest;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
@@ -8,7 +9,6 @@ import cz.cvut.kbss.termit.exception.AssetRemovalException;
 import cz.cvut.kbss.termit.exception.VocabularyImportException;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.rest.handler.ErrorInfo;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
@@ -352,16 +352,13 @@ class VocabularyControllerTest extends BaseControllerTestRunner {
         when(idResolverMock.resolveIdentifier(configMock.getNamespace().getVocabulary(), FRAGMENT))
                 .thenReturn(VOCABULARY_URI);
         when(serviceMock.getRequiredReference(VOCABULARY_URI)).thenReturn(vocabulary);
-        final List<AbstractChangeRecord> records =
-                Generator.generateChangeRecords(vocabulary, user);
+        final List<ChangeVector<?>> records = Generator.generateChangeVectors(vocabulary, user);
         when(serviceMock.getChanges(vocabulary)).thenReturn(records);
 
         final MvcResult mvcResult =
                 mockMvc.perform(get(PATH + "/" + FRAGMENT + "/history")).andExpect(status().isOk())
                        .andReturn();
-        final List<AbstractChangeRecord> result =
-                readValue(mvcResult, new TypeReference<List<AbstractChangeRecord>>() {
-                });
+        final List<ChangeVector<?>> result = readValue(mvcResult, new TypeReference<>() {});
         assertNotNull(result);
         assertEquals(records, result);
         verify(serviceMock).getChanges(vocabulary);

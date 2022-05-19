@@ -1,9 +1,9 @@
 package cz.cvut.kbss.termit.service.repository;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.termit.model.Asset;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
 import cz.cvut.kbss.termit.service.changetracking.ChangeRecordProvider;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,16 +13,16 @@ import java.util.Objects;
 @Service
 public class ChangeRecordService implements ChangeRecordProvider<Asset<?>> {
 
-    private final ChangeRecordDao changeRecordDao;
+    private final ChangeTrackingService changeTrackingService;
 
     @Autowired
-    public ChangeRecordService(ChangeRecordDao changeRecordDao) {
-        this.changeRecordDao = changeRecordDao;
+    public ChangeRecordService(ChangeTrackingService changeTrackingService) {
+        this.changeTrackingService = changeTrackingService;
     }
 
     @Override
-    public List<AbstractChangeRecord> getChanges(Asset<?> asset) {
+    public List<ChangeVector<?>> getChanges(Asset<?> asset) {
         Objects.requireNonNull(asset);
-        return changeRecordDao.findAll(asset);
+        return changeTrackingService.getAllForObject(asset);
     }
 }

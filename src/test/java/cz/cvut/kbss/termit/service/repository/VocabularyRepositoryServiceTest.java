@@ -14,6 +14,7 @@
  */
 package cz.cvut.kbss.termit.service.repository;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.termit.environment.Environment;
@@ -25,8 +26,6 @@ import cz.cvut.kbss.termit.exception.VocabularyImportException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.UserAccount;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
@@ -66,22 +65,6 @@ class VocabularyRepositoryServiceTest extends BaseServiceTestRunner {
         this.user = Generator.generateUserAccountWithPassword();
         transactional(() -> em.persist(user));
         Environment.setCurrentUser(user);
-    }
-
-    @Test
-    void persistGeneratesPersistChangeRecord() {
-        final Vocabulary vocabulary = Generator.generateVocabularyWithId();
-        sut.persist(vocabulary);
-
-        final Vocabulary result = em.find(Vocabulary.class, vocabulary.getUri());
-        assertNotNull(result);
-
-        final PersistChangeRecord record = em
-                .createQuery("SELECT r FROM PersistChangeRecord r WHERE r.changedEntity = :vocabularyIri",
-                        PersistChangeRecord.class).setParameter("vocabularyIri", vocabulary.getUri()).getSingleResult();
-        assertNotNull(record);
-        assertEquals(user.toUser(), record.getAuthor());
-        assertNotNull(record.getTimestamp());
     }
 
     @Test
@@ -244,7 +227,7 @@ class VocabularyRepositoryServiceTest extends BaseServiceTestRunner {
     void getChangesRetrievesChangesForVocabulary() {
         final Vocabulary vocabulary = Generator.generateVocabularyWithId();
         transactional(() -> em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary)));
-        final List<AbstractChangeRecord> changes = sut.getChanges(vocabulary);
+        final List<ChangeVector<?>> changes = sut.getChanges(vocabulary);
         assertTrue(changes.isEmpty());
     }
 

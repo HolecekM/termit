@@ -12,15 +12,14 @@
 
 package cz.cvut.kbss.termit.environment;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
+import cz.cvut.kbss.jopa.model.annotations.OWLClass;
 import cz.cvut.kbss.jopa.vocabulary.RDFS;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.model.*;
 import cz.cvut.kbss.termit.model.assignment.*;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.UpdateChangeRecord;
 import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
@@ -283,15 +282,6 @@ public class Generator {
         return file;
     }
 
-    public static PersistChangeRecord generatePersistChange(Asset<?> asset) {
-        final PersistChangeRecord record = new PersistChangeRecord(asset);
-        record.setTimestamp(Utils.timestamp());
-        if (Environment.getCurrentUser() != null) {
-            record.setAuthor(Environment.getCurrentUser().toUser());
-        }
-        return record;
-    }
-
     /**
      * Generates a change record indicating change of the specified asset's label from nothing to
      * the current value.
@@ -299,25 +289,22 @@ public class Generator {
      * @param asset Changed asset
      * @return Change record
      */
-    public static UpdateChangeRecord generateUpdateChange(Asset<?> asset) {
-        final UpdateChangeRecord record = new UpdateChangeRecord(asset);
-        record.setTimestamp(Utils.timestamp());
+    public static ChangeVector<?> generateUpdateChangeVector(Asset<?> asset) {
+        final ChangeVector<?> record = new ChangeVector<>(asset.getClass().getAnnotation(OWLClass.class).iri(),
+                asset.getUri().toString(), RDFS.LABEL, asset.getLabel()
+        );
         if (Environment.getCurrentUser() != null) {
-            record.setAuthor(Environment.getCurrentUser().toUser());
+            record.setAuthorId(Environment.getCurrentUser().toUser().getUri().toString());
         }
-        record.setChangedAttribute(URI.create(RDFS.LABEL));
-        record.setNewValue(Collections.singleton(asset.getLabel()));
         return record;
     }
 
-    public static List<AbstractChangeRecord> generateChangeRecords(Asset<?> asset, User user) {
-        final PersistChangeRecord persistRecord = generatePersistChange(asset);
-        final List<AbstractChangeRecord> result =
-                IntStream.range(0, 5).mapToObj(i -> generateUpdateChange(asset))
+    public static List<ChangeVector<?>> generateChangeVectors(Asset<?> asset, User user) {
+        final List<ChangeVector<?>> result =
+                IntStream.range(0, 5).mapToObj(i -> generateUpdateChangeVector(asset))
                          .collect(Collectors.toList());
-        result.add(0, persistRecord);
         if (user != null) {
-            result.forEach(r -> r.setAuthor(user));
+            result.forEach(r -> r.setAuthorId(user.getUri().toString()));
         }
         return result;
     }
