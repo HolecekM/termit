@@ -20,6 +20,20 @@ package cz.cvut.kbss.termit.model;
 import cz.cvut.kbss.jopa.model.annotations.OWLClass;
 import cz.cvut.kbss.termit.util.Vocabulary;
 
+import java.util.Objects;
+
 @OWLClass(iri = Vocabulary.s_c_model)
 public class Model extends AbstractEntity {
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Model)) return false;
+        Model that = (Model) o;
+        return Objects.equals(getUri(), that.getUri());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getUri());
+    }
 }
