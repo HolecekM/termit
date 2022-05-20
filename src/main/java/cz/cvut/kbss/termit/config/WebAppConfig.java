@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import cz.cvut.kbss.jopa.adapters.IndirectMultilingualString;
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.sessions.UnitOfWorkImpl;
 import cz.cvut.kbss.jsonld.JsonLd;
@@ -83,6 +84,7 @@ public class WebAppConfig implements WebMvcConfigurer {
         final SimpleModule multilingualStringModule = new SimpleModule();
         multilingualStringModule.addSerializer(MultilingualString.class, new MultilingualStringSerializer());
         multilingualStringModule.addDeserializer(MultilingualString.class, new MultilingualStringDeserializer());
+        multilingualStringModule.addDeserializer((Class) IndirectMultilingualString.class, new MultilingualStringDeserializer());
         objectMapper.registerModule(multilingualStringModule);
         // Ignore UoW references injected into entities
         objectMapper.addMixIn(UnitOfWorkImpl.class, ManageableIgnoreMixin.class);

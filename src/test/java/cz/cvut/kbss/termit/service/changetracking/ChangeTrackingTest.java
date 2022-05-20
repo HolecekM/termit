@@ -164,8 +164,7 @@ public class ChangeTrackingTest extends AbstractChangeTrackingTest {
 
         final List<ChangeVector<?>> result = getAll(term);
         assertEquals(1, result.size());
-        assertEquals(Collections.singleton(originalDefinition),
-                     result.get(0).getPreviousValue());
+        assertEquals(originalDefinition, result.get(0).getPreviousValue());
     }
 
     @Test
