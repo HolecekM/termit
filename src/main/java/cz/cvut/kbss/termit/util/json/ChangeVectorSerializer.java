@@ -31,7 +31,7 @@ public class ChangeVectorSerializer implements ValueSerializer<ChangeVector> {
         ObjectNode root = JsonNodeFactory.createObjectNode();
         root.addItem(serializeRaw(JsonLd.TYPE, Set.of(Vocabulary.s_c_zmena, Vocabulary.s_c_uprava_entity)));
         root.addItem(serializeRaw(Vocabulary.s_p_ma_datum_a_cas_modifikace, vector.getTimestamp()));
-        root.addItem(serializeAnnotationProperty(Vocabulary.s_p_ma_editora, vector.getAuthorId()));
+        root.addItem(serializeAuthor(vector.getAuthorId()));
         root.addItem(serializeAnnotationProperty(Vocabulary.s_p_ma_zmenenou_entitu, vector.getObjectId()));
         root.addItem(serializeAnnotationProperty(Vocabulary.s_p_ma_zmeneny_atribut, vector.getAttributeName()));
 
@@ -50,6 +50,19 @@ public class ChangeVectorSerializer implements ValueSerializer<ChangeVector> {
     private JsonNode serializeAnnotationProperty(String attributeName, String value) {
         ObjectNode node = JsonNodeFactory.createObjectNode(attributeName);
         node.addItem(JsonNodeFactory.createObjectIdNode(JsonLd.ID, value));
+        return node;
+    }
+
+    /**
+     * Serialization quickfix to stop the frontend from displaying 'undefined undefined' in place of the author's name.
+     * TODO: replace.
+     */
+    private JsonNode serializeAuthor(String authorId) {
+        ObjectNode node = (ObjectNode) serializeAnnotationProperty(Vocabulary.s_p_ma_editora, authorId);
+        node.addItem(serializeRaw(JsonLd.TYPE, Set.of(Vocabulary.s_c_uzivatel_termitu)));
+        node.addItem(serializeRaw(Vocabulary.s_p_ma_krestni_jmeno, ""));
+        node.addItem(serializeRaw(Vocabulary.s_p_ma_prijmeni, ""));
+        node.addItem(serializeRaw(Vocabulary.s_p_ma_uzivatelske_jmeno, ""));
         return node;
     }
 }
