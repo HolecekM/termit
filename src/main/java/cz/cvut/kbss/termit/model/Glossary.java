@@ -76,20 +76,4 @@ public class Glossary extends AbstractEntity {
                 "term count=" + (rootTerms != null ? rootTerms.size() : 0) +
                 " " + super.toString() + "}";
     }
-
-    /**
-     * TODO: check compat with {@link Term#splitExternalAndInternalParents()}!
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Glossary)) return false;
-        Glossary glossary = (Glossary) o;
-        return Objects.equals(rootTerms, glossary.rootTerms);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(rootTerms);
-    }
 }
