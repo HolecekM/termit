@@ -839,7 +839,6 @@ class TermDaoTest extends BaseDaoTestRunner {
     }
 
     @Test
-    // TODO: fix this test
     void findLastEditedLoadsVocabularyForTerms() {
         enableRdfsInference(em);
         final Term term = Generator.generateTermWithId();

@@ -21,11 +21,11 @@ import cz.cvut.kbss.termit.asset.provenance.ModifiesData;
 import cz.cvut.kbss.termit.asset.provenance.SupportsLastModification;
 import cz.cvut.kbss.termit.event.RefreshLastModifiedEvent;
 import cz.cvut.kbss.termit.exception.PersistenceException;
-import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Vocabulary;
 import org.springframework.context.event.EventListener;
@@ -42,8 +42,13 @@ public class ResourceDao extends AssetDao<Resource> implements SupportsLastModif
 
     private volatile long lastModified;
 
-    public ResourceDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory) {
-        super(Resource.class, em, config.getPersistence(), descriptorFactory);
+    public ResourceDao(
+            EntityManager em,
+            Configuration config,
+            DescriptorFactory descriptorFactory,
+            ChangeTrackingService changeTrackingService
+    ) {
+        super(Resource.class, em, config.getPersistence(), descriptorFactory, changeTrackingService);
         refreshLastModified();
     }
 
@@ -149,42 +154,6 @@ public class ResourceDao extends AssetDao<Resource> implements SupportsLastModif
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
-    }
-
-    @Override
-    List<URI> findUniqueLastModifiedEntities(int limit) {
-        // Must ensure vocabularies (which are technically also resources) are not included
-        return em.createNativeQuery("SELECT DISTINCT ?entity WHERE {" +
-                "?x a ?change ;" +
-                "?hasModificationDate ?modified ;" +
-                "?hasModifiedEntity ?entity ." +
-                "?entity a ?type ." +
-                "FILTER NOT EXISTS { ?entity a ?vocabulary . }" +
-                "} ORDER BY DESC(?modified)", URI.class).setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                 .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                 .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                 .setParameter("type", typeUri)
-                 .setParameter("vocabulary", URI.create(Vocabulary.s_c_slovnik))
-                 .setMaxResults(limit).getResultList();
-    }
-
-    @Override
-    List<URI> findUniqueLastModifiedEntitiesBy(User author, int limit) {
-        return em.createNativeQuery("SELECT DISTINCT ?entity WHERE {" +
-                "?x a ?change ;" +
-                "?hasModificationDate ?modified ;" +
-                "?hasEditor ?author ;" +
-                "?hasModifiedEntity ?entity ." +
-                "?entity a ?type ." +
-                "FILTER NOT EXISTS { ?entity a ?vocabulary . }" +
-                "} ORDER BY DESC(?modified)", URI.class).setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                 .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                 .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
-                 .setParameter("author", author)
-                 .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                 .setParameter("type", typeUri)
-                 .setParameter("vocabulary", URI.create(Vocabulary.s_c_slovnik))
-                 .setMaxResults(limit).getResultList();
     }
 
     @Override

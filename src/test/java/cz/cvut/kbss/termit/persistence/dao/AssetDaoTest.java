@@ -60,6 +60,9 @@ class AssetDaoTest extends BaseDaoTestRunner {
         enableRdfsInference(em);
         final List<Resource> resources = IntStream.range(0, 10).mapToObj(i -> Generator.generateResourceWithId())
                                                   .collect(Collectors.toList());
+        final List<ChangeVector<?>> vectors = resources.stream().map(Generator::generateUpdateChangeVector)
+                                                       .collect(Collectors.toList());
+        jpaTransactional(() -> vectorPersistService.persistChangeVectors(vectors.toArray(ChangeVector[]::new)));
         transactional(() -> resources.forEach(em::persist));
         final List<URI> recent = resources.subList(5, resources.size()).stream().map(Resource::getUri)
                                           .collect(Collectors.toList());

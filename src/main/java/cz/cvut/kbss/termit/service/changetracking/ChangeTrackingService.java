@@ -16,8 +16,14 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Tracks changes to assets.
@@ -26,8 +32,6 @@ import java.util.Objects;
 @EntityScan("cz.cvut.kbss.changetracking.model")
 @Transactional("jpaTxManager")
 public class ChangeTrackingService {
-    private static final Logger LOG = LoggerFactory.getLogger(ChangeTrackingService.class);
-
     private final ChangeTracker changeTracker;
 
     @Autowired
@@ -70,5 +74,29 @@ public class ChangeTrackingService {
                 entity.getClass().getAnnotation(OWLClass.class).iri(),
                 entity.getUri().toString()
         );
+    }
+
+    public List<ChangeVector<?>> getLastNChangedEntitiesOfType(URI entityType, int limit) {
+        return changeTracker
+                .getChangesOfTypeSince(Instant.EPOCH, entityType.toString())
+                .stream()
+                .filter(distinctByChangedEntityId())
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
+    public List<ChangeVector<?>> getLastNChangedEntitiesOfTypeForUser(URI entityType, User user, int limit) {
+        return changeTracker
+                .getChangesOfTypeSince(Instant.EPOCH, entityType.toString())
+                .stream()
+                .filter(vector -> vector.getAuthorId().equals(user.getUri().toString()))
+                .filter(distinctByChangedEntityId())
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
+    private static Predicate<ChangeVector<?>> distinctByChangedEntityId() {
+        Set<String> seen = ConcurrentHashMap.newKeySet();
+        return vector -> seen.add(vector.getObjectId());
     }
 }

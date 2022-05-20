@@ -28,6 +28,7 @@ import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.validation.VocabularyContentValidator;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -55,9 +56,14 @@ public class VocabularyDao extends AssetDao<Vocabulary> implements SupportsLastM
     private final ApplicationContext context;
 
     @Autowired
-    public VocabularyDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
-                         ApplicationContext context) {
-        super(Vocabulary.class, em, config.getPersistence(), descriptorFactory);
+    public VocabularyDao(
+            EntityManager em,
+            Configuration config,
+            DescriptorFactory descriptorFactory,
+            ApplicationContext context,
+            ChangeTrackingService changeTrackingService
+    ) {
+        super(Vocabulary.class, em, config.getPersistence(), descriptorFactory, changeTrackingService);
         refreshLastModified();
         this.context = context;
     }

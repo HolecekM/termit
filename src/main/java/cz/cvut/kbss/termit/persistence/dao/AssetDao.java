@@ -14,16 +14,22 @@
  */
 package cz.cvut.kbss.termit.persistence.dao;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.EntityManager;
+import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.termit.dto.RecentlyCommentedAsset;
 import cz.cvut.kbss.termit.dto.RecentlyModifiedAsset;
 import cz.cvut.kbss.termit.exception.PersistenceException;
+import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
-import cz.cvut.kbss.termit.util.Vocabulary;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import cz.cvut.kbss.termit.util.Configuration.Persistence;
+import cz.cvut.kbss.termit.util.Vocabulary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.List;
@@ -36,56 +42,45 @@ import java.util.stream.Collectors;
  * @param <T> Type of the asset
  */
 public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(AssetDao.class);
 
     protected final Persistence config;
 
     protected final DescriptorFactory descriptorFactory;
 
-    AssetDao(Class<T> type, EntityManager em, Persistence config, DescriptorFactory descriptorFactory) {
+    /**
+     * OPTIMIZE: Do not put a service into a DAO - migrate all methods which require the service to a corresponding
+     *  service on top of the DAO.
+     */
+    protected final ChangeTrackingService changeTrackingService;
+
+    AssetDao(
+            Class<T> type,
+            EntityManager em,
+            Persistence config,
+            DescriptorFactory descriptorFactory,
+            ChangeTrackingService changeTrackingService
+    ) {
         super(type, em);
         this.config = config;
         this.descriptorFactory = descriptorFactory;
+        this.changeTrackingService = changeTrackingService;
     }
 
     /**
-     * Finds the specified number of most recently added/edited assets.
+     * Finds the specified number of most recently edited assets.
      *
      * @param limit Number of assets to load
-     * @return List of recently added/edited assets
+     * @return List of recently edited assets
      */
     public List<RecentlyModifiedAsset> findLastEdited(int limit) {
         try {
-            final List<URI> recentlyModifiedUniqueAssets = findUniqueLastModifiedEntities(limit);
-            final List<RecentlyModifiedAsset> modified = recentlyModifiedUniqueAssets.stream().map(asset -> {
-                        return (RecentlyModifiedAsset) em
-                                .createNativeQuery(
-                                        "SELECT DISTINCT ?entity ?label ?modified ?modifiedBy ?vocabulary ?type ?changeType WHERE {" +
-                                                "?x a ?change ;" +
-                                                "   a ?chType ;" +
-                                                "?hasModifiedEntity ?ent ;" +
-                                                "?hasEditor ?modifiedBy ;" +
-                                                "?hasModificationDate ?modified ." +
-                                                "?ent ?hasLabel ?label ." +
-                                                "OPTIONAL { ?ent ?isFromVocabulary ?vocabulary . }" +
-                                                "BIND (?cls as ?type)" +
-                                                "BIND (?ent as ?entity)" +
-                                                "FILTER (?chType != ?change)" +
-                                                "BIND (IF(?chType = ?persist, ?persist, ?update) as ?changeType)" +
-                                                "FILTER (lang(?label) = ?language)" +
-                                                "} ORDER BY DESC(?modified)", "RecentlyModifiedAsset")
-                                .setParameter("cls", typeUri)
-                                .setParameter("ent", asset)
-                                .setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                                .setParameter("hasLabel", labelProperty())
-                                .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                                .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
-                                .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                                .setParameter("isFromVocabulary", URI.create(Vocabulary.s_p_je_pojmem_ze_slovniku))
-                                .setParameter("persist", URI.create(Vocabulary.s_c_vytvoreni_entity))
-                                .setParameter("update", URI.create(Vocabulary.s_c_uprava_entity))
-                                .setParameter("language", config.getLanguage()).setMaxResults(1).getSingleResult();
-                    }
-            ).collect(Collectors.toList());
+            final List<ChangeVector<?>> recentlyModifiedUniqueAssets =
+                    changeTrackingService.getLastNChangedEntitiesOfType(typeUri, limit);
+            final List<RecentlyModifiedAsset> modified = recentlyModifiedUniqueAssets
+                    .stream()
+                    .map(this::getRecentlyModifiedFromVector)
+                    .collect(Collectors.toList());
             loadLastEditors(modified);
             return modified;
         } catch (RuntimeException e) {
@@ -93,85 +88,29 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
         }
     }
 
-    List<URI> findUniqueLastModifiedEntities(int limit) {
-        return em.createNativeQuery("SELECT DISTINCT ?entity WHERE {" +
-                "?x a ?change ;" +
-                "?hasModificationDate ?modified ;" +
-                "?hasModifiedEntity ?entity ." +
-                "?entity a ?type ." +
-                "} ORDER BY DESC(?modified)", URI.class).setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                 .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                 .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                 .setParameter("type", typeUri).setMaxResults(limit).getResultList();
-    }
-
     private void loadLastEditors(List<RecentlyModifiedAsset> modified) {
         modified.forEach(m -> m.setEditor(em.find(User.class, m.getModifiedBy())));
     }
 
     /**
-     * Finds the specified number of most recently added/edited assets by the specified author.
+     * Finds the specified number of most recently edited assets by the specified author.
      *
      * @param author Author of the modifications
      * @param limit  Number of assets to load
-     * @return List of assets recently added/edited by the specified user
+     * @return List of assets recently edited by the specified user
      */
     public List<RecentlyModifiedAsset> findLastEditedBy(User author, int limit) {
         Objects.requireNonNull(author);
         try {
-            final List<URI> recentlyModifiedUniqueAssets = findUniqueLastModifiedEntitiesBy(author, limit);
-            return recentlyModifiedUniqueAssets.stream().map(asset -> {
-                        final RecentlyModifiedAsset rec = (RecentlyModifiedAsset) em
-                                .createNativeQuery(
-                                        "SELECT DISTINCT ?entity ?label ?modified ?modifiedBy ?vocabulary ?type ?changeType WHERE {" +
-                                                "?x a ?change ;" +
-                                                "   a ?chType ;" +
-                                                "?hasModifiedEntity ?ent ;" +
-                                                "?hasEditor ?author ;" +
-                                                "?hasModificationDate ?modified ." +
-                                                "?ent ?hasLabel ?label ." +
-                                                "OPTIONAL { ?ent ?isFromVocabulary ?vocabulary . }" +
-                                                "BIND (?cls as ?type)" +
-                                                "BIND (?ent as ?entity)" +
-                                                "BIND (?author as ?modifiedBy)" +
-                                                "FILTER (?chType != ?change)" +
-                                                "BIND (IF(?chType = ?persist, ?persist, ?update) as ?changeType)" +
-                                                "FILTER (lang(?label) = ?language)" +
-                                                "} ORDER BY DESC(?modified)", "RecentlyModifiedAsset")
-                                .setParameter("cls", typeUri)
-                                .setParameter("ent", asset)
-                                .setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                                .setParameter("hasLabel", labelProperty())
-                                .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                                .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
-                                .setParameter("author", author)
-                                .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                                .setParameter("isFromVocabulary", URI.create(Vocabulary.s_p_je_pojmem_ze_slovniku))
-                                .setParameter("persist", URI.create(Vocabulary.s_c_vytvoreni_entity))
-                                .setParameter("update", URI.create(Vocabulary.s_c_uprava_entity))
-                                .setParameter("language", config.getLanguage()).setMaxResults(1).getSingleResult();
-                        rec.setEditor(author);
-                        return rec;
-                    }
-            ).collect(Collectors.toList());
+            final List<ChangeVector<?>> recentlyModifiedUniqueAssets =
+                    changeTrackingService.getLastNChangedEntitiesOfTypeForUser(typeUri, author, limit);
+            return recentlyModifiedUniqueAssets
+                    .stream()
+                    .map(this::getRecentlyModifiedFromVector)
+                    .collect(Collectors.toList());
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
-    }
-
-    List<URI> findUniqueLastModifiedEntitiesBy(User author, int limit) {
-        return em.createNativeQuery("SELECT DISTINCT ?entity WHERE {" +
-                "?x a ?change ;" +
-                "?hasModificationDate ?modified ;" +
-                "?hasEditor ?author ;" +
-                "?hasModifiedEntity ?entity ." +
-                "?entity a ?type ." +
-                "} ORDER BY DESC(?modified)", URI.class).setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                 .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                 .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
-                 .setParameter("author", author)
-                 .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                 .setParameter("type", typeUri).setMaxResults(limit).getResultList();
     }
 
     /**
@@ -330,4 +269,23 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
      * @return RDF property identifier
      */
     protected abstract URI labelProperty();
+
+    protected RecentlyModifiedAsset getRecentlyModifiedFromVector(ChangeVector<?> vector) {
+        T asset = em.find(em.getMetamodel().entity(type).getBindableJavaType(), vector.getObjectId());
+        URI vocabularyUri = asset instanceof AbstractTerm ? ((AbstractTerm) asset).getVocabulary() : null;
+
+        String labelString;
+        Object label = asset.getLabel();
+        if (label instanceof String) {
+            labelString = (String) label;
+        } else if (label instanceof MultilingualString) {
+            labelString = ((MultilingualString) label).get(config.getLanguage());
+        } else {
+            // missing case? the list was exhaustive on 2022-05-20
+            LOG.warn("Missing case when extracting label for asset ID '{}': {}", vector.getObjectId(), label);
+            labelString = label.toString();
+        }
+
+        return RecentlyModifiedAsset.fromVector(vector, labelString, typeUri.toString(), vocabularyUri);
+    }
 }

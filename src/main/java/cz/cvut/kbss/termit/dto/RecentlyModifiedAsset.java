@@ -1,6 +1,7 @@
 package cz.cvut.kbss.termit.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.annotations.*;
 import cz.cvut.kbss.jopa.vocabulary.DC;
 import cz.cvut.kbss.jopa.vocabulary.RDFS;
@@ -143,5 +144,18 @@ public class RecentlyModifiedAsset implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(uri, label, modified, vocabulary, types);
+    }
+
+    public static RecentlyModifiedAsset fromVector(ChangeVector<?> vector, String label, String typeUriString, URI vocabularyUri) {
+        // TODO: s_c_vytvoreni_entity support
+        return new RecentlyModifiedAsset(
+                URI.create(vector.getObjectId()),
+                label,
+                vector.getTimestamp(),
+                URI.create(vector.getAuthorId()),
+                vocabularyUri,
+                typeUriString,
+                Vocabulary.s_c_uprava_entity
+        );
     }
 }

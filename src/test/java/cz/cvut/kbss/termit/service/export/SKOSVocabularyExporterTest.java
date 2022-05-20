@@ -132,8 +132,6 @@ class SKOSVocabularyExporterTest extends BaseServiceTestRunner {
         final TypeAwareResource result = sut.exportGlossary(vocabulary);
         final Model model = loadAsModel(result);
         assertTrue(model.contains(glossaryIri(vocabulary), OWL.VERSIONIRI, null));
-        assertTrue(model.contains(glossaryIri(vocabulary), DCTERMS.CREATOR, null));
-        assertTrue(model.contains(glossaryIri(vocabulary), DCTERMS.CREATED, null));
         assertTrue(model.contains(glossaryIri(vocabulary), DCTERMS.RIGHTS, null));
         assertTrue(model.contains(glossaryIri(vocabulary),
                 vf.createIRI("http://purl.org/vocab/vann/preferredNamespacePrefix"), null));

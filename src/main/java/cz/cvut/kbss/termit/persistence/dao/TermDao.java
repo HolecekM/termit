@@ -28,6 +28,7 @@ import cz.cvut.kbss.termit.model.util.HasIdentifier;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.dao.util.Cache;
 import cz.cvut.kbss.termit.persistence.dao.util.SparqlResultToTermInfoMapper;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Utils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,9 +49,14 @@ public class TermDao extends AssetDao<Term> {
     private final Comparator<TermInfo> termInfoComparator;
 
     @Autowired
-    public TermDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
-                   Cache<URI, Set<TermInfo>> subTermsCache) {
-        super(Term.class, em, config.getPersistence(), descriptorFactory);
+    public TermDao(
+            EntityManager em,
+            Configuration config,
+            DescriptorFactory descriptorFactory,
+            Cache<URI, Set<TermInfo>> subTermsCache,
+            ChangeTrackingService changeTrackingService
+    ) {
+        super(Term.class, em, config.getPersistence(), descriptorFactory, changeTrackingService);
         this.subTermsCache = subTermsCache;
         this.termInfoComparator = Comparator.comparing(t -> t.getLabel().get(config.getPersistence().getLanguage()));
     }

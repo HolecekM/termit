@@ -2,6 +2,7 @@ package cz.cvut.kbss.termit.service.comment;
 
 import cz.cvut.kbss.termit.exception.AuthorizationException;
 import cz.cvut.kbss.termit.exception.NotFoundException;
+import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.exception.UnsupportedOperationException;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.User;
@@ -9,7 +10,9 @@ import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.model.comment.CommentReaction;
 import cz.cvut.kbss.termit.persistence.dao.comment.CommentDao;
 import cz.cvut.kbss.termit.persistence.dao.comment.CommentReactionDao;
+import cz.cvut.kbss.termit.service.changetracking.ChangeTrackingService;
 import cz.cvut.kbss.termit.service.security.SecurityUtils;
+import cz.cvut.kbss.termit.util.Vocabulary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class CommentService {
@@ -27,11 +32,19 @@ public class CommentService {
 
     private final CommentReactionDao reactionDao;
 
+    private final ChangeTrackingService changeTrackingService;
+
     @Autowired
-    public CommentService(SecurityUtils securityUtils, CommentDao dao, CommentReactionDao reactionDao) {
+    public CommentService(
+            SecurityUtils securityUtils,
+            CommentDao dao,
+            CommentReactionDao reactionDao,
+            ChangeTrackingService changeTrackingService
+    ) {
         this.securityUtils = securityUtils;
         this.dao = dao;
         this.reactionDao = reactionDao;
+        this.changeTrackingService = changeTrackingService;
     }
 
     /**
@@ -141,16 +154,26 @@ public class CommentService {
     }
 
     /**
-     * Finds the specified number of the current user's most recently added/edited comments and reactions on them.
+     * Finds the specified number of the current user's most recently edited comments.
      *
      * @param limit Maximum number of comments to retrieve
-     * @return List of recently added/edited comments
+     * @return List of recently edited comments
      */
     public List<Comment> findLastEditedByMe(int limit) {
         if (limit < 0) {
             throw new IllegalArgumentException("Maximum for recently edited comments must not be less than 0.");
         }
-        final User me = securityUtils.getCurrentUser().toUser();
-        return dao.findLastEditedBy(me, limit);
+        try {
+            final User me = Objects.requireNonNull(securityUtils.getCurrentUser().toUser());
+            return changeTrackingService
+                    .getLastNChangedEntitiesOfTypeForUser(URI.create(Vocabulary.s_c_Comment), me, limit)
+                    .stream()
+                    .map(vector -> dao.find(URI.create(vector.getObjectId())))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .collect(Collectors.toList());
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
     }
 }

@@ -14,16 +14,20 @@
  */
 package cz.cvut.kbss.termit.model;
 
+import cz.cvut.kbss.changetracking.model.ChangeVector;
 import cz.cvut.kbss.jopa.model.annotations.Id;
 import cz.cvut.kbss.jopa.model.annotations.MappedSuperclass;
 import cz.cvut.kbss.termit.model.util.HasIdentifier;
 import cz.cvut.kbss.termit.model.util.validation.WithoutQueryParameters;
+import cz.cvut.kbss.termit.persistence.dao.AssetDao;
 
 import java.net.URI;
 
 /**
  * Represents basic info about an asset managed by the application.
  *
+ * @apiNote When adding new subclasses of {@link Asset}, especially with new {@code T}, make sure to update
+ * {@link AssetDao#getRecentlyModifiedFromVector(ChangeVector)}.
  * @param <T> Type of the label
  */
 @MappedSuperclass
