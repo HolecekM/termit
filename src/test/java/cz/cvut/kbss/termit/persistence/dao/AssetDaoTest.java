@@ -96,7 +96,7 @@ class AssetDaoTest extends BaseDaoTestRunner {
         final Resource resource = Generator.generateResourceWithId();
         transactional(() -> em.persist(resource));
         final ChangeVector<?> vector = Generator.generateUpdateChangeVector(resource);
-        jpaTransactional(() -> em.persist(vector));
+        jpaTransactional(() -> vectorPersistService.persistChangeVectors(vector));
 
         final int count = 3;
         final List<RecentlyModifiedAsset> result = sut.findLastEdited(count);
@@ -126,8 +126,8 @@ class AssetDaoTest extends BaseDaoTestRunner {
         }).collect(Collectors.toList());
 
         jpaTransactional(() -> {
-            persistRecords.forEach(em::persist);
-            otherPersistRecords.forEach(em::persist);
+            vectorPersistService.persistChangeVectors(persistRecords.toArray(ChangeVector[]::new));
+            vectorPersistService.persistChangeVectors(otherPersistRecords.toArray(ChangeVector[]::new));
         });
 
         final List<RecentlyModifiedAsset> result = sut.findLastEditedBy(user, 3);
